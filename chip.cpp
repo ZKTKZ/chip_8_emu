@@ -143,8 +143,9 @@ void Chip8::emulate (){
       //assert(I==NNN);
       break;
     case 0xD000:
-     unsigned char x = v[X] & 64;
-     unsigned char y = v[Y] & 32;
+     //From Multigesture's sol'n 
+     unsigned char x = v[X >> 8];
+     unsigned char y = v[Y >> 4];
      //idk why we're setting carry flag to 0 
      v[N] = 0;
 
@@ -155,8 +156,11 @@ void Chip8::emulate (){
        for (int j = 0; j < 8; j++){
          if (x+j > 64)
            continue;
-         display[(y+i)*64+x+j] ^= (pixels & (1 << j));
-         v[N] = !(display[(y+i)*64+x+j]);
+         if (pixels & (0x0080 >> j)){
+           if (display[(y+i)*64+x+j] == 1)
+             v[N] = 1;
+           display[(y+i)*64+x+j] ^= 1;
+         }
        }
      }
      show_screen();
