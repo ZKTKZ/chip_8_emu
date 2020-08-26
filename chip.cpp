@@ -1,4 +1,5 @@
 #include <typeinfo>
+#include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <cstdio>
@@ -6,23 +7,68 @@
 #include <experimental/random>
 #include <SDL2/SDL.h>
 #include <stack>
-using namespace std;
+
+using std::cerr;
+using std::cout;
+using std::endl;
+using std::ifstream;
+using std::streampos;
+using std::ios;
 
 class Chip8;
 
 class Graphics {
   public:
 
-  SDL_Window* window;
-  SDL_Renderer* renderer;
-  SDL_Texture* texture;
-
-  void init();
+  int init();
 };
 
-void Graphics::init(){
-  //SDL_CreateWindowAndRenderer(64, 32, SDL_WINDOW_RESIZABLE, &window, &renderer);
-  //texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, 64, 32);
+int Graphics::init(){
+  if (SDL_Init(SDL_INIT_EVERYTHING) != 0 ){
+    cerr << "SDL_Init Error: " << SDL_GetError() << endl;
+    return EXIT_FAILURE;
+  }
+
+  SDL_Window* window = SDL_CreateWindow("Chip 8", 100, 100, 64, 32, SDL_WINDOW_SHOWN);
+  if (window == nullptr){
+    cerr << "SDL_CreateWindow Error: " << SDL_GetError() << endl;
+    return EXIT_FAILURE;
+  }
+
+  SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+  if (renderer == nullptr){
+    cerr << "SDL_CreateRenderer Error" << SDL_GetError() << endl;
+    if (window == nullptr){
+      SDL_DestroyWindow(window);
+    }
+    SDL_Quit();
+  }
+  
+  SDL_Texture* texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, 64, 32);
+  if (texture == nullptr){
+    cerr << "SDL_CreateTexture Error: " << SDL_GetError() << endl;
+    if (renderer != nullptr){
+      SDL_DestroyRenderer(renderer);
+    }
+    if (window != nullptr){
+      SDL_DestroyWindow(window);
+    }
+    SDL_Quit();
+    return EXIT_FAILURE;
+  }
+
+      for (int i = 0; i < 20; i++) {
+        SDL_RenderClear(renderer);
+        SDL_RenderCopy(renderer, texture, nullptr, nullptr);
+        SDL_RenderPresent(renderer);
+        SDL_Delay(100);
+    }
+
+  SDL_DestroyTexture(texture);
+  SDL_DestroyRenderer(renderer);
+  SDL_DestroyWindow(window);
+  SDL_Quit();
+  return EXIT_SUCCESS;
 }
 
 class Chip8 {
@@ -100,7 +146,7 @@ void Chip8::init (){
   streampos size;
   char * memblock;
 
-  ifstream rom ("./IBM_Logo.ch8", ios::in|ios::binary|ios::ate);
+  ifstream rom ("./ibm.ch8", ios::in|ios::binary|ios::ate);
   if (rom.is_open()){
 
     size = rom.tellg();
@@ -246,7 +292,7 @@ void Chip8::emulate (){
         pc = NNN+v[0];
       break;
     case 0xC000:
-      v[X] = experimental::randint(0, 255) & NN;
+      // v[X] = std::experimental::randint(0, 255) & NN;
       break;
     case 0xD000:
      //From Multigesture's sol'n 
@@ -280,11 +326,11 @@ void Chip8::emulate (){
 }
 
 int main(){
-  // Chip8 myChip8;
-  Graphics graphics;
+  //Chip8 myChip8;
+   Graphics graphics;
 
   // myChip8.init();
-  //graphics.init();
+  graphics.init();
 
   //main loop 
   //should be infinite
