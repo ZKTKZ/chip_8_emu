@@ -19,8 +19,12 @@ class Chip8;
 
 class Graphics {
   public:
+  SDL_Renderer* renderer = nullptr;
+  SDL_Texture* texture = nullptr;
+  SDL_Window* window = nullptr;
 
   int init();
+  void render();
 };
 
 int Graphics::init(){
@@ -29,13 +33,13 @@ int Graphics::init(){
     return EXIT_FAILURE;
   }
 
-  SDL_Window* window = SDL_CreateWindow("Chip 8", 100, 100, 64, 32, SDL_WINDOW_SHOWN);
+  window = SDL_CreateWindow("Chip 8", 100, 100, 64, 32, SDL_WINDOW_SHOWN);
   if (window == nullptr){
     cerr << "SDL_CreateWindow Error: " << SDL_GetError() << endl;
     return EXIT_FAILURE;
   }
 
-  SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+  renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
   if (renderer == nullptr){
     cerr << "SDL_CreateRenderer Error" << SDL_GetError() << endl;
     if (window == nullptr){
@@ -44,7 +48,7 @@ int Graphics::init(){
     SDL_Quit();
   }
   
-  SDL_Texture* texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, 64, 32);
+  texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, 64, 32);
   if (texture == nullptr){
     cerr << "SDL_CreateTexture Error: " << SDL_GetError() << endl;
     if (renderer != nullptr){
@@ -57,18 +61,33 @@ int Graphics::init(){
     return EXIT_FAILURE;
   }
 
-      for (int i = 0; i < 20; i++) {
-        SDL_RenderClear(renderer);
-        SDL_RenderCopy(renderer, texture, nullptr, nullptr);
-        SDL_RenderPresent(renderer);
-        SDL_Delay(100);
-    }
-
-  SDL_DestroyTexture(texture);
-  SDL_DestroyRenderer(renderer);
-  SDL_DestroyWindow(window);
-  SDL_Quit();
+  // SDL_DestroyTexture(texture);
+  // SDL_DestroyRenderer(renderer);
+  // SDL_DestroyWindow(window);
+  // SDL_Quit();
   return EXIT_SUCCESS;
+}
+
+void Graphics::render(){
+     void * pixels;
+    int* pitch;
+    *pitch = 1;
+    if (SDL_LockTexture(texture, NULL, (&pixels), pitch) < 0 ){
+      SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Couldn't lock textures: %s\n", SDL_GetError());
+      SDL_Quit();
+
+    }
+    /*
+    Do pixel operations DXYN for this cycle
+    */
+
+    SDL_UnlockTexture(texture);
+    for (int i = 0; i < 20; i++) {
+      SDL_RenderClear(renderer);
+      SDL_RenderCopy(renderer, texture, nullptr, nullptr);
+      SDL_RenderPresent(renderer);
+      SDL_Delay(100);
+      }
 }
 
 class Chip8 {
@@ -327,10 +346,29 @@ void Chip8::emulate (){
 
 int main(){
   //Chip8 myChip8;
-   Graphics graphics;
+  Graphics graphics;
 
   // myChip8.init();
   graphics.init();
+
+  bool quit = false;
+
+  SDL_Event event;
+  while(!quit){
+    while (SDL_PollEvent(&event) != 0){
+      if (event.type == SDL_QUIT)
+        quit = true;
+      const Uint8* currentKeyStates = SDL_GetKeyboardState( NULL );
+      //Handle different inputs
+      graphics.render();    
+      cout << __LINE__;
+
+    }
+    
+  }
+
+
+
 
   //main loop 
   //should be infinite
