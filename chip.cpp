@@ -15,6 +15,7 @@ using std::ifstream;
 using std::streampos;
 using std::ios;
 
+unsigned char display [64*32] = {0};
 class Chip8;
 
 class Graphics {
@@ -69,9 +70,9 @@ int Graphics::init(){
 }
 
 void Graphics::render(){
-     void * pixels;
      int pitch = 1;
-    if (SDL_LockTexture(texture, NULL, (&pixels), &pitch) < 0 ){
+    //BAD: doesn't require ENTIRE display
+    if (SDL_LockTexture(texture, NULL, (void**)(display), &pitch) < 0 ){
       SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Couldn't lock textures: %s\n", SDL_GetError());
       SDL_Quit();
 
@@ -81,9 +82,9 @@ void Graphics::render(){
     */
 
     SDL_UnlockTexture(texture);
-      SDL_RenderClear(renderer);
-      SDL_RenderCopy(renderer, texture, nullptr, nullptr);
-      SDL_RenderPresent(renderer);
+    SDL_RenderClear(renderer);
+    SDL_RenderCopy(renderer, texture, nullptr, nullptr);
+    SDL_RenderPresent(renderer);
 }
 
 class Chip8 {
@@ -91,7 +92,6 @@ class Chip8 {
   public:
 
     unsigned char memory [4096];
-    unsigned char display [64*32] = {0};
     
     unsigned short pc;
     unsigned short I;
@@ -131,7 +131,7 @@ class Chip8 {
     };
 
     void init();
-    void emulate();
+    void emulate(int key);
     void show_screen();
 };
 
@@ -176,7 +176,7 @@ void Chip8::init (){
   }
 }
 
-void Chip8::emulate (){
+void Chip8::emulate (int key){
 
     //default:
     //write sprite to memory
@@ -321,9 +321,9 @@ void Chip8::emulate (){
           //if (x+j > 64)
             //continue;
           if (pixels & (0x0080 >> j)){
-            if (display[(y_0+i)*64+x_0+j] == 1)
+            if (display[(y_0+i)*64+x_0+j] == 0xFFFFFFFF)
               v[0x000F] = 1;
-            display[(y_0+i)*64+x_0+j] ^= 1;
+            display[(y_0+i)*64+x_0+j] ^= 0xFFFFFFFF;
           }
         }
       }
@@ -356,7 +356,7 @@ int main(){
   graphics.init();
 
   bool quit = false;
-  int reg = 0;
+  int reg = -1;
 
   SDL_Event event;
   while(!quit){
@@ -370,9 +370,36 @@ int main(){
         reg = 2;
       else if (currentKeyStates[SDL_SCANCODE_3])
         reg = 3;
-      myChip8.emulate();
+      else if (currentKeyStates[SDL_SCANCODE_4])
+        reg = 0xC;
+      else if (currentKeyStates[SDL_SCANCODE_Q])
+        reg = 4;
+      else if (currentKeyStates[SDL_SCANCODE_W])
+        reg = 5;
+      else if (currentKeyStates[SDL_SCANCODE_E])
+        reg = 6;
+      else if (currentKeyStates[SDL_SCANCODE_R])
+        reg = 0xD;
+      else if (currentKeyStates[SDL_SCANCODE_A])
+        reg = 7;
+      else if (currentKeyStates[SDL_SCANCODE_S])
+        reg = 8; 
+      else if (currentKeyStates[SDL_SCANCODE_D])
+        reg = 9;
+      else if (currentKeyStates[SDL_SCANCODE_F])
+        reg = 0xE;
+      else if (currentKeyStates[SDL_SCANCODE_Z])
+        reg = 0xA;
+      else if (currentKeyStates[SDL_SCANCODE_X])
+        reg = 0;
+      else if (currentKeyStates[SDL_SCANCODE_C])
+        reg = 0xB;
+      else if (currentKeyStates[SDL_SCANCODE_V])
+        reg = 0xF;
+      else if (currentKeyStates[SDL_SCANCODE_3])
+        reg = 3;
+      myChip8.emulate(reg);
       
-      cout << reg << endl;
       graphics.render();    
     }
     
