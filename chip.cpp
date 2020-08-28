@@ -33,7 +33,7 @@ int Graphics::init(){
     return EXIT_FAILURE;
   }
 
-  window = SDL_CreateWindow("Chip 8", 100, 100, 64, 32, SDL_WINDOW_SHOWN);
+  window = SDL_CreateWindow("Chip 8", 100, 100, 640, 320, SDL_WINDOW_SHOWN);
   if (window == nullptr){
     cerr << "SDL_CreateWindow Error: " << SDL_GetError() << endl;
     return EXIT_FAILURE;
@@ -70,9 +70,8 @@ int Graphics::init(){
 
 void Graphics::render(){
      void * pixels;
-    int* pitch;
-    *pitch = 1;
-    if (SDL_LockTexture(texture, NULL, (&pixels), pitch) < 0 ){
+     int pitch = 1;
+    if (SDL_LockTexture(texture, NULL, (&pixels), &pitch) < 0 ){
       SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Couldn't lock textures: %s\n", SDL_GetError());
       SDL_Quit();
 
@@ -82,12 +81,9 @@ void Graphics::render(){
     */
 
     SDL_UnlockTexture(texture);
-    for (int i = 0; i < 20; i++) {
       SDL_RenderClear(renderer);
       SDL_RenderCopy(renderer, texture, nullptr, nullptr);
       SDL_RenderPresent(renderer);
-      SDL_Delay(100);
-      }
 }
 
 class Chip8 {
@@ -133,8 +129,6 @@ class Chip8 {
       0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
       0xF0, 0x80, 0xF0, 0x80, 0x80  // F
     };
-
-    //BASIC: input support
 
     void init();
     void emulate();
@@ -314,28 +308,38 @@ void Chip8::emulate (){
       // v[X] = std::experimental::randint(0, 255) & NN;
       break;
     case 0xD000:
-     //From Multigesture's sol'n 
-     x_0 = v[X >> 8] % 64;
-     y_0 = v[Y >> 4] % 32;
-     v[0x000F] = 0;
+      //From Multigesture's sol'n 
+      x_0 = v[X >> 8] % 64;
+      y_0 = v[Y >> 4] % 32;
+      v[0x000F] = 0;
 
-     for (int i = 0; i < N; i++){
-       //if (y+i > 32)
-         //continue;
-       unsigned char pixels = memory[I + i];
-       for (int j = 0; j < 8; j++){
-         //if (x+j > 64)
-           //continue;
-         if (pixels & (0x0080 >> j)){
-           if (display[(y_0+i)*64+x_0+j] == 1)
-             v[0x000F] = 1;
-           display[(y_0+i)*64+x_0+j] ^= 1;
-         }
-       }
-     }
-     drawFlag = true;
-     show_screen();
-     break;
+      for (int i = 0; i < N; i++){
+        //if (y+i > 32)
+          //continue;
+        unsigned char pixels = memory[I + i];
+        for (int j = 0; j < 8; j++){
+          //if (x+j > 64)
+            //continue;
+          if (pixels & (0x0080 >> j)){
+            if (display[(y_0+i)*64+x_0+j] == 1)
+              v[0x000F] = 1;
+            display[(y_0+i)*64+x_0+j] ^= 1;
+          }
+        }
+      }
+      drawFlag = true;
+      show_screen();
+      break;
+      case 0xE000:
+        switch (op_code & 0x000F){
+        case 0x000E:
+         /* constant-expression */
+          /* code */
+          break;
+        case 0x0001:
+          break;  
+        }
+        break;
 
   }
   if (delay_timer > 0)
@@ -345,13 +349,14 @@ void Chip8::emulate (){
 }
 
 int main(){
-  //Chip8 myChip8;
+  Chip8 myChip8;
   Graphics graphics;
 
-  // myChip8.init();
+  myChip8.init();
   graphics.init();
 
   bool quit = false;
+  int reg = 0;
 
   SDL_Event event;
   while(!quit){
@@ -359,16 +364,19 @@ int main(){
       if (event.type == SDL_QUIT)
         quit = true;
       const Uint8* currentKeyStates = SDL_GetKeyboardState( NULL );
-      //Handle different inputs
+      if (currentKeyStates[SDL_SCANCODE_1])
+        reg = 1;
+      else if (currentKeyStates[SDL_SCANCODE_2])
+        reg = 2;
+      else if (currentKeyStates[SDL_SCANCODE_3])
+        reg = 3;
+      myChip8.emulate();
+      
+      cout << reg << endl;
       graphics.render();    
-      cout << __LINE__;
-
     }
     
   }
-
-
-
 
   //main loop 
   //should be infinite
