@@ -236,11 +236,9 @@ void Chip8::emulate (int key){
       break;
     case 0x6000:
       v[X] = NN;
-      // TEST 
-      //assert(v[X] == NN);
       break;
     case 0x7000:
-      v[X] = (v[X]+NN) & 0x100;
+      v[X] = (v[X]+NN) % 0x100;
       break;
     case 0x8000:
       switch(op_code & 0x000F){
@@ -311,7 +309,7 @@ void Chip8::emulate (int key){
       x_0 = v[X] % 64;
       y_0 = v[Y] % 32;
       v[0x000F] = 0;
-      v[1] = 8;
+      y_0 = 8;
 
       for (int i = 0; i < N; i++){
         unsigned char pixels = memory[I + i];
