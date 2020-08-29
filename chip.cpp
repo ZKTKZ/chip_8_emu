@@ -80,15 +80,10 @@ void Graphics::render(){
 
     for (int y = 0; y < 32; y++){
       for (int x = 0; x < 64 ; x++){
+        //actually not sure
         // *(pixels+y*64+x) = screen[y*64+x];
       }
     }
-    /*
-    Do pixel operations DXYN for this cycle
-    set pixels to screen[]
-    */
-
-    cout << "Display[0]" << &screen[0] << endl;
     SDL_UnlockTexture(texture);
     SDL_RenderClear(renderer);
     SDL_RenderCopy(renderer, texture, nullptr, nullptr);
@@ -118,7 +113,7 @@ class Chip8 {
 
     unsigned char x_0, y_0;
     bool drawFlag = false;
-    //Fonts
+    //TO-DO: initialize fonts
     unsigned char fonts [16*5] = {
       0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
       0x20, 0x60, 0x20, 0x20, 0x70, // 1
@@ -165,7 +160,7 @@ void Chip8::init (){
   streampos size;
   char * memblock;
 
-  ifstream rom ("./ibm.ch8", ios::in|ios::binary|ios::ate);
+  ifstream rom ("./test_opcode.ch8", ios::in|ios::binary|ios::ate);
   if (rom.is_open()){
 
     size = rom.tellg();
@@ -208,6 +203,8 @@ void Chip8::emulate (int key){
           // TEST
           //show_screen();
           break;
+        case 0x000A:
+          break; 
         case 0x000E:
           pc = stack[sp-1];
           break; 
@@ -253,7 +250,7 @@ void Chip8::emulate (int key){
           else{
             v[0x000F] = 0;
           }
-          v[X] = (v[X] + v[Y]) & 0x0100;
+          v[X] = (v[X] + v[Y]) % 0x0100;
           break;  
         case 0x0005:
           if(v[Y] > v[X])
@@ -305,11 +302,9 @@ void Chip8::emulate (int key){
       // v[X] = std::experimental::randint(0, 255) & NN;
       break;
     case 0xD000:
-      //From Multigesture's sol'n 
       x_0 = v[X] % 64;
       y_0 = v[Y] % 32;
       v[0x000F] = 0;
-      y_0 = 8;
 
       for (int i = 0; i < N; i++){
         unsigned char pixels = memory[I + i];
@@ -324,16 +319,45 @@ void Chip8::emulate (int key){
       drawFlag = true;
       show_screen();
       break;
-      case 0xE000:
-        switch (op_code & 0x000F){
-        case 0x000E:
-         /* constant-expression */
-          /* code */
-          break;
-        case 0x0001:
-          break;  
-        }
+    case 0xE000:
+      switch (op_code & 0x000F){
+      case 0x000E:
+        /* constant-expression */
+        /* code */
         break;
+      case 0x0001:
+        break;  
+      }
+      break;
+    case 0xF000:
+      switch (op_code & 0x000F){
+        case 0x0005:
+          switch (op_code & 0x00F0){
+            case 0x0010:
+            /* code */
+              break;
+            case 0x0050:
+              for (int i = 0; i < X+1; i++){
+                memory[I+i] = v[i];
+              }
+              I += X+1;
+              break;
+            case 0x0060:
+              for (int i = 0; i < X+1; i++){
+                v[i] = memory[I+i];
+              }
+              I += X+1;
+              break;
+          }
+          break;
+        case 0x0003:
+          memory[I] = (v[X]-v[X]%100) / 100;
+          memory[I+1] = (v[X]-v[X]%10) / 10;
+          memory[I+2] = v[X] - (memory[I] + memory[I+1]);
+          I += (X+1);
+          break;
+      }
+      break;
 
   }
   if (delay_timer > 0)
