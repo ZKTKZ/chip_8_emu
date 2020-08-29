@@ -15,8 +15,8 @@ using std::ifstream;
 using std::streampos;
 using std::ios;
 
-unsigned char display [64*32] = {0};
-class Chip8;
+unsigned char screen [64*32] = {0};
+// class Chip8;
 
 class Graphics {
   public:
@@ -71,16 +71,24 @@ int Graphics::init(){
 
 void Graphics::render(){
      int pitch = 1;
-    //BAD: doesn't require ENTIRE display
-    if (SDL_LockTexture(texture, NULL, (void**)(display), &pitch) < 0 ){
+     void * pixels;
+    //BAD: doesn't require ENTIRE screen[] array
+    if (SDL_LockTexture(texture, NULL, &pixels, &pitch) < 0 ){
       SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Couldn't lock textures: %s\n", SDL_GetError());
       SDL_Quit();
+    }
 
+    for (int y = 0; y < 32; y++){
+      for (int x = 0; x < 64 ; x++){
+        // *(pixels+y*64+x) = screen[y*64+x];
+      }
     }
     /*
     Do pixel operations DXYN for this cycle
+    set pixels to screen[]
     */
 
+    cout << "Display[0]" << &screen[0] << endl;
     SDL_UnlockTexture(texture);
     SDL_RenderClear(renderer);
     SDL_RenderCopy(renderer, texture, nullptr, nullptr);
@@ -136,11 +144,9 @@ class Chip8 {
 };
 
 void Chip8::show_screen (){
-  printf("DISPLAY.\n");
-  for (int i = 0; i < 32; i++){
-    for (int j = 0; j < 64; j++){
-      if(display[i*64+j]){
-        //printf("%x", display[i*64+j]);
+  for (int y = 0; y < 32; y++){
+    for (int x = 0; x < 64; x++){
+      if(screen[y*64+x]){
         printf("*");
       }
       else
@@ -177,21 +183,14 @@ void Chip8::init (){
 }
 
 void Chip8::emulate (int key){
-
-    //default:
-    //write sprite to memory
-    //starting with 0x0051 (81 in base 10)
-    //have global counter var which is incremented
-    //sprite & mem are both 1 byte (8 bits)
-
   op_code = (memory[pc] << 8) | memory[pc+1];
   //printf("pc: %d\n", pc);
   //printf("op_code: %x\n", op_code);
   pc = pc + 2;
   drawFlag = false;
 
-  X = op_code & 0x0F00;
-  Y = op_code & 0x00F0;
+  X = (op_code & 0x0F00) >> 8 ;
+  Y = (op_code & 0x00F0) >> 4;
   N = op_code & 0x000F;
   //TO-DO: bitshift and bitwise OR existing variables 
   NN = op_code & 0x00FF;
@@ -202,8 +201,8 @@ void Chip8::emulate (int key){
       switch (op_code & 0x000F){
         case 0x0000:
           for (int px = 0; px < 64*32; px++){
-            if (display[px] == 1) 
-              display[px] = 0;
+            // if (screen[px] == 1) 
+              screen[px] = 0;
           }
           drawFlag = true;
           // TEST
@@ -241,7 +240,7 @@ void Chip8::emulate (int key){
       //assert(v[X] == NN);
       break;
     case 0x7000:
-      v[X] = (v[X]+NN) & 256;
+      v[X] = (v[X]+NN) & 0x100;
       break;
     case 0x8000:
       switch(op_code & 0x000F){
@@ -309,21 +308,18 @@ void Chip8::emulate (int key){
       break;
     case 0xD000:
       //From Multigesture's sol'n 
-      x_0 = v[X >> 8] % 64;
-      y_0 = v[Y >> 4] % 32;
+      x_0 = v[X] % 64;
+      y_0 = v[Y] % 32;
       v[0x000F] = 0;
+      v[1] = 8;
 
       for (int i = 0; i < N; i++){
-        //if (y+i > 32)
-          //continue;
         unsigned char pixels = memory[I + i];
-        for (int j = 0; j < 8; j++){
-          //if (x+j > 64)
-            //continue;
-          if (pixels & (0x0080 >> j)){
-            if (display[(y_0+i)*64+x_0+j] == 0xFFFFFFFF)
+        for (int x = 0; x < 8; x++){
+          if (pixels & (0x0080 >> x)){
+            if (screen[(y_0+i)*64+x_0+x] == 0xFFFFFFFF)
               v[0x000F] = 1;
-            display[(y_0+i)*64+x_0+j] ^= 0xFFFFFFFF;
+            screen[(y_0+i)*64+x_0+x] ^= 0xFFFFFFFF;
           }
         }
       }
@@ -358,59 +354,58 @@ int main(){
   bool quit = false;
   int reg = -1;
 
-  SDL_Event event;
-  while(!quit){
-    while (SDL_PollEvent(&event) != 0){
-      if (event.type == SDL_QUIT)
-        quit = true;
-      const Uint8* currentKeyStates = SDL_GetKeyboardState( NULL );
-      if (currentKeyStates[SDL_SCANCODE_1])
-        reg = 1;
-      else if (currentKeyStates[SDL_SCANCODE_2])
-        reg = 2;
-      else if (currentKeyStates[SDL_SCANCODE_3])
-        reg = 3;
-      else if (currentKeyStates[SDL_SCANCODE_4])
-        reg = 0xC;
-      else if (currentKeyStates[SDL_SCANCODE_Q])
-        reg = 4;
-      else if (currentKeyStates[SDL_SCANCODE_W])
-        reg = 5;
-      else if (currentKeyStates[SDL_SCANCODE_E])
-        reg = 6;
-      else if (currentKeyStates[SDL_SCANCODE_R])
-        reg = 0xD;
-      else if (currentKeyStates[SDL_SCANCODE_A])
-        reg = 7;
-      else if (currentKeyStates[SDL_SCANCODE_S])
-        reg = 8; 
-      else if (currentKeyStates[SDL_SCANCODE_D])
-        reg = 9;
-      else if (currentKeyStates[SDL_SCANCODE_F])
-        reg = 0xE;
-      else if (currentKeyStates[SDL_SCANCODE_Z])
-        reg = 0xA;
-      else if (currentKeyStates[SDL_SCANCODE_X])
-        reg = 0;
-      else if (currentKeyStates[SDL_SCANCODE_C])
-        reg = 0xB;
-      else if (currentKeyStates[SDL_SCANCODE_V])
-        reg = 0xF;
-      else if (currentKeyStates[SDL_SCANCODE_3])
-        reg = 3;
-      myChip8.emulate(reg);
+  // SDL_Event event;
+  // while(!quit){
+  //   while (SDL_PollEvent(&event) != 0){
+  //     if (event.type == SDL_QUIT)
+  //       quit = true;
+  //     const Uint8* currentKeyStates = SDL_GetKeyboardState( NULL );
+  //     if (currentKeyStates[SDL_SCANCODE_1])
+  //       reg = 1;
+  //     else if (currentKeyStates[SDL_SCANCODE_2])
+  //       reg = 2;
+  //     else if (currentKeyStates[SDL_SCANCODE_3])
+  //       reg = 3;
+  //     else if (currentKeyStates[SDL_SCANCODE_4])
+  //       reg = 0xC;
+  //     else if (currentKeyStates[SDL_SCANCODE_Q])
+  //       reg = 4;
+  //     else if (currentKeyStates[SDL_SCANCODE_W])
+  //       reg = 5;
+  //     else if (currentKeyStates[SDL_SCANCODE_E])
+  //       reg = 6;
+  //     else if (currentKeyStates[SDL_SCANCODE_R])
+  //       reg = 0xD;
+  //     else if (currentKeyStates[SDL_SCANCODE_A])
+  //       reg = 7;
+  //     else if (currentKeyStates[SDL_SCANCODE_S])
+  //       reg = 8; 
+  //     else if (currentKeyStates[SDL_SCANCODE_D])
+  //       reg = 9;
+  //     else if (currentKeyStates[SDL_SCANCODE_F])
+  //       reg = 0xE;
+  //     else if (currentKeyStates[SDL_SCANCODE_Z])
+  //       reg = 0xA;
+  //     else if (currentKeyStates[SDL_SCANCODE_X])
+  //       reg = 0;
+  //     else if (currentKeyStates[SDL_SCANCODE_C])
+  //       reg = 0xB;
+  //     else if (currentKeyStates[SDL_SCANCODE_V])
+  //       reg = 0xF;
+  //     else if (currentKeyStates[SDL_SCANCODE_3])
+  //       reg = 3;
+  //     myChip8.emulate(reg);
       
-      graphics.render();    
-    }
+  //     graphics.render();    
+  //   }
     
-  }
+  // }
 
   //main loop 
   //should be infinite
-  // for (int i = 0; i < 150; i++){
-  //   myChip8.emulate();
-    // if (myChip8->drawFlag){
-    // }
+  for (int i = 0; i < 150; i++){
+    myChip8.emulate(reg);
+    }
     //check user input
   // }
   
