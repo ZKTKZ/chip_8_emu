@@ -16,7 +16,7 @@ using std::streampos;
 using std::ios;
 
 unsigned char screen [64*32] = {0};
-// class Chip8;
+class Emulator;
 
 class Graphics {
   public:
@@ -25,7 +25,7 @@ class Graphics {
   SDL_Window* window = nullptr;
 
   int init();
-  void render();
+  void render(int x_0, int y_0, unsigned char N);
 };
 
 int Graphics::init(){
@@ -69,30 +69,27 @@ int Graphics::init(){
   return EXIT_SUCCESS;
 }
 
-void Graphics::render(){
-     int pitch = 1;
+    void Graphics::render(int x_0, int y_0, unsigned char N){
+     int pitch = 8;
      void * pixels;
-    //BAD: doesn't require ENTIRE screen[] array
+     memcpy(pixels, screen[y_0*64+x_0], N*8);
+
     if (SDL_LockTexture(texture, NULL, &pixels, &pitch) < 0 ){
       SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Couldn't lock textures: %s\n", SDL_GetError());
       SDL_Quit();
     }
 
-    for (int y = 0; y < 32; y++){
-      for (int x = 0; x < 64 ; x++){
-        //actually not sure
-        // *(pixels+y*64+x) = screen[y*64+x];
-      }
-    }
+    // memcpy(&pixels, &screen[y_0*64+x_0], N*pitch);
+
     SDL_UnlockTexture(texture);
     SDL_RenderClear(renderer);
     SDL_RenderCopy(renderer, texture, nullptr, nullptr);
     SDL_RenderPresent(renderer);
 }
 
-class Chip8 {
-  friend class Graphics;
+class Emulator {
   public:
+    Graphics graphics;
 
     unsigned char memory [4096];
     
@@ -136,9 +133,14 @@ class Chip8 {
     void init();
     void emulate(int key);
     void show_screen();
+    void callGraphics();
 };
 
-void Chip8::show_screen (){
+void Emulator::callGraphics(){
+  this->graphics.render(x_0, y_0, N);
+}
+
+void Emulator::show_screen (){
   for (int y = 0; y < 32; y++){
     for (int x = 0; x < 64; x++){
       if(screen[y*64+x]){
@@ -153,14 +155,16 @@ void Chip8::show_screen (){
 }
 
 //TO-DO: should pass filename str
-void Chip8::init (){
-  op_code = I = sp = 0;
+void Emulator::init (){
+  op_code = 0;
+  I = 0;
+  sp = 0;
   pc = 0x0200;
 
   streampos size;
   char * memblock;
 
-  ifstream rom ("./test_opcode.ch8", ios::in|ios::binary|ios::ate);
+  ifstream rom ("./ibm.ch8", ios::in|ios::binary|ios::ate);
   if (rom.is_open()){
 
     size = rom.tellg();
@@ -177,7 +181,7 @@ void Chip8::init (){
   }
 }
 
-void Chip8::emulate (int key){
+void Emulator::emulate (int key){
   op_code = (memory[pc] << 8) | memory[pc+1];
   //printf("pc: %d\n", pc);
   //printf("op_code: %x\n", op_code);
@@ -367,11 +371,9 @@ void Chip8::emulate (int key){
 }
 
 int main(){
-  Chip8 myChip8;
-  Graphics graphics;
+  Emulator myEmulator;
 
-  myChip8.init();
-  graphics.init();
+  myEmulator.init();
 
   bool quit = false;
   int reg = -1;
@@ -416,7 +418,7 @@ int main(){
   //       reg = 0xF;
   //     else if (currentKeyStates[SDL_SCANCODE_3])
   //       reg = 3;
-  //     myChip8.emulate(reg);
+  //     myEmulator.emulate(reg);
       
   //     graphics.render();    
   //   }
@@ -426,7 +428,9 @@ int main(){
   //main loop 
   //should be infinite
   for (int i = 0; i < 150; i++){
-    myChip8.emulate(reg);
+    myEmulator.emulate(reg);
+    if (myEmulator.drawFlag)
+      myEmulator.callGraphics();
     }
     //check user input
   // }
